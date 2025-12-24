@@ -32,7 +32,10 @@ async function run() {
 
     // reports api
     app.get('/reports', async(req, res)=>{
-
+      const query = {}
+      const cursor = reportsCollection.find(query)
+      const result = await cursor.toArray()
+      res.send(result) 
     })
 
     app.post('/reports', async(req, res)=>{
