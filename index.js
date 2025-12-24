@@ -31,8 +31,21 @@ async function run() {
     const reportsCollection = db.collection('reports')
 
     // reports api
+    // get all the reports
     app.get('/reports', async(req, res)=>{
       const query = {}
+      const cursor = reportsCollection.find(query)
+      const result = await cursor.toArray()
+      res.send(result) 
+    })
+
+    // get report for a single person
+     app.get('/reports', async(req, res)=>{
+      const query = {}
+      const {email} = req.query
+      if(email){
+        query.email = email
+      }
       const cursor = reportsCollection.find(query)
       const result = await cursor.toArray()
       res.send(result) 
