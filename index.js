@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 require('dotenv').config()
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 3000
 
 // middleware
@@ -32,12 +32,12 @@ async function run() {
 
     // reports api
     // get all the reports
-    app.get('/reports', async(req, res)=>{
-      const query = {}
-      const cursor = reportsCollection.find(query)
-      const result = await cursor.toArray()
-      res.send(result) 
-    })
+    // app.get('/reports', async(req, res)=>{
+    //   const query = {}
+    //   const cursor = reportsCollection.find(query)
+    //   const result = await cursor.toArray()
+    //   res.send(result) 
+    // })
 
     // get report for a single person
      app.get('/reports', async(req, res)=>{
@@ -46,14 +46,25 @@ async function run() {
       if(email){
         query.email = email
       }
-      const cursor = reportsCollection.find(query)
+      const options = {sort: {createdAt: -1}}
+      const cursor = reportsCollection.find(query, options)
       const result = await cursor.toArray()
       res.send(result) 
     })
 
+    // add a parcel to database
     app.post('/reports', async(req, res)=>{
       const report = req.body
+      report.createdAt = new Date()
       const result = await reportsCollection.insertOne(report)
+      res.send(result)
+    })
+
+    // delete a parcel from database
+    app.delete('/reports/:id', async(req, res)=>{
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await reportsCollection.deleteOne(query)
       res.send(result)
     })
 
@@ -77,46 +88,3 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
 })
-
-
-// const express = require("express");
-// const cors = require("cors");
-// require("dotenv").config();
-// const { MongoClient, ServerApiVersion } = require("mongodb");
-
-// const app = express();
-// const port = process.env.PORT || 3000;
-
-// app.use(express.json());
-// app.use(cors());
-
-// const encodedPass = encodeURIComponent(process.env.DB_PASS);
-// const uri = `mongodb+srv://${process.env.DB_USER}:${encodedPass}@cluster0.ke2w89y.mongodb.net/?retryWrites=true&w=majority`;
-
-// const client = new MongoClient(uri, {
-//   serverApi: {
-//     version: ServerApiVersion.v1,
-//     strict: true,
-//     deprecationErrors: true,
-//   },
-// });
-
-// async function startServer() {
-//   try {
-//     await client.connect();
-//     console.log("MongoDB connected");
-
-//     app.get("/", (req, res) => {
-//       res.send("Hello World!");
-//     });
-
-//     app.listen(port, () => {
-//       console.log(`Server running on port ${port}`);
-//     });
-
-//   } catch (error) {
-//     console.error("Server failed to start ❌", error);
-//   }
-// }
-
-// startServer();
