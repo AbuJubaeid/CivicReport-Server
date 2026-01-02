@@ -52,6 +52,14 @@ async function run() {
       res.send(result) 
     })
 
+    // get a report
+    app.get('/reports/:id', async(req, res)=>{
+      const id = req.params.id
+      const query = {_id: new ObjectId(id)}
+      const result = await reportsCollection.findOne(query)
+      res.send(result)
+    })
+
     // add a parcel to database
     app.post('/reports', async(req, res)=>{
       const report = req.body
