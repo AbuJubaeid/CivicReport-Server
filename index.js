@@ -4,6 +4,7 @@ const cors = require('cors')
 require('dotenv').config()
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 3000
+const stripe = require('stripe')(process.env.STRIPE_SECRET);
 
 // middleware
 app.use(express.json())
@@ -75,6 +76,37 @@ async function run() {
       const result = await reportsCollection.deleteOne(query)
       res.send(result)
     })
+
+
+    // payment apis are here
+  
+    app.post("/create-checkout-session", async (req, res) => {
+      const paymentInfo = req.body
+      const session = await stripe.checkout.sessions.create({
+        line_items: [
+          {
+            // Provide the exact Price ID (for example, price_1234) of the product you want to sell
+            price_data: {
+              currency: 'USD',
+              unit_amount: 200,
+              product_data: {
+                name:paymentInfo.issue,
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        customer_email : paymentInfo.email,
+        mode: "payment",
+        metadata: {
+          reportId: paymentInfo.reportId
+        },
+        success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+        cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+      });
+      console.log(session)
+      res.send({url: session.url})
+    });
 
 
 
