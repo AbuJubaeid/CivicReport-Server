@@ -9,7 +9,7 @@ const crypto = require("crypto");
 
 const admin = require("firebase-admin");
 
-const serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT);
+const serviceAccount = require('./civicreport-firebase-adminsdk.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
@@ -219,7 +219,7 @@ async function run() {
                 if (email !== req.decoded_email) {
                     return res.status(403).send({ message: 'forbidden access' })
                 }
-            const cursor = paymentCollection.find(query);
+            const cursor = paymentCollection.find(query).sort({paidAt: -1});
             const result = await cursor.toArray();
             res.send(result);
         })
