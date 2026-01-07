@@ -67,17 +67,19 @@ async function run() {
     await client.connect();
 
     const db = client.db('CivicReport_db')
+    const usersCollection = db.collection('users')
     const reportsCollection = db.collection('reports')
      const paymentCollection = db.collection('payments');
 
-    // reports api
-    // get all the reports
-    // app.get('/reports', async(req, res)=>{
-    //   const query = {}
-    //   const cursor = reportsCollection.find(query)
-    //   const result = await cursor.toArray()
-    //   res.send(result) 
-    // })
+
+    // users related apis are here
+    app.post('/users', async (req, res) => {
+            const user = req.body;
+            user.role = 'user';
+            user.createdAt = new Date();
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
 
     // get report for a single person
      app.get('/reports', async(req, res)=>{
