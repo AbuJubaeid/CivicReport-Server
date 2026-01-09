@@ -104,6 +104,21 @@ async function run() {
       res.send(result)
     })
 
+    // update staffs status
+     app.patch('/staffs/:id', verifyFBToken, async (req, res) => {
+            const status = req.body.status;
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    status: status
+                }
+            }
+
+            const result = await staffsCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        })
+
 
     // get report for a single person
     app.get("/reports", async (req, res) => {
