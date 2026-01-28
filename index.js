@@ -91,6 +91,20 @@ async function run() {
       res.send(result);
     });
 
+    // change admin role
+    app.patch("/users/:id", async(req, res)=>{
+      const id = req.params.id
+      const roleInfo = req.body
+      const query = { _id: new ObjectId(id)}
+      const update = {
+        $set: {
+          role: roleInfo.role
+        }
+      }
+      const result = await usersCollection.updateOne(query, update)
+      res.send(result)
+    })
+
 
     //==> staff related apis are here
     app.post('/staffs', async(req, res)=>{
