@@ -68,6 +68,15 @@ async function run() {
     const staffsCollection = db.collection("staff");
 
     //==> users related apis are here
+
+    // get all the users
+    app.get('/users', async(req, res)=>{
+      const cursor = usersCollection.find()
+      const result = await cursor.toArray()
+      res.send(result)
+    })
+
+    // create user
     app.post("/users", async (req, res) => {
       const user = req.body;
       user.role = "user";
