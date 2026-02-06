@@ -105,6 +105,13 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/users/:email/role', async(req, res)=>{
+      const email = req.params.email
+      const query = { email }
+      const user = await usersCollection.findOne(query)
+      res.send({role: user?.role || 'user'})
+    })
+
 
     //==> staff related apis are here
     app.post('/staffs', async(req, res)=>{
