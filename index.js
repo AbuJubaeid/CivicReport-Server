@@ -85,8 +85,17 @@ async function run() {
     //==> users related apis are here
 
     // get all the users
-    app.get('/users', async(req, res)=>{
-      const cursor = usersCollection.find()
+    app.get('/users',verifyFBToken, async(req, res)=>{
+      const searchUser = req.query.searchUser
+      const query = {}
+
+      if(searchUser){
+        query.$or = [
+          {displayName: { $regex: searchUser, $options: 'i'}},
+          {email: { $regex: searchUser, $options: 'i'}}
+        ]
+      }
+      const cursor = usersCollection.find(query).sort({createdAt: -1}).limit(5)
       const result = await cursor.toArray()
       res.send(result)
     })
