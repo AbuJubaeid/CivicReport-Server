@@ -67,6 +67,21 @@ async function run() {
     const paymentCollection = db.collection("payments");
     const staffsCollection = db.collection("staff");
 
+
+    // ==>middleware for verifing admin 
+
+    const verifyAdminToken = async(req, res, next)=>{
+      const email = req.decoded_email
+      const query = { email }
+      const user = await usersCollection.findOne(query)
+
+      if(!user || user.role !== 'admin'){
+        return res.status(403).send({message: 'forbidden access'})
+      }
+
+      next()
+    }
+
     //==> users related apis are here
 
     // get all the users
@@ -92,7 +107,7 @@ async function run() {
     });
 
     // change admin role
-    app.patch("/users/:id", async(req, res)=>{
+    app.patch("/users/:id/role", verifyFBToken, verifyAdminToken,  async(req, res)=>{
       const id = req.params.id
       const roleInfo = req.body
       const query = { _id: new ObjectId(id)}
@@ -135,7 +150,7 @@ async function run() {
     })
 
     // update staffs status
-     app.patch('/staffs/:id', verifyFBToken, async (req, res) => {
+     app.patch('/staffs/:id', verifyFBToken,verifyAdminToken, async (req, res) => {
             const status = req.body.status;
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
