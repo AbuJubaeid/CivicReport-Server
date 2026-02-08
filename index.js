@@ -149,10 +149,17 @@ async function run() {
 
     // get all the staffs
     app.get('/staffs', async(req, res)=>{
+      const {status, address, workStatus} = req.query
       const query = {}
-      if(req.query.status){
-        query.status = req.query.status
-      } 
+
+      if(status){
+        query.status = status
+      }
+
+      if(workStatus){
+        query.workStatus = workStatus
+      }
+
       const cursor = staffsCollection.find(query)
       const result = await cursor.toArray()
       res.send(result)
@@ -165,7 +172,8 @@ async function run() {
             const query = { _id: new ObjectId(id) }
             const updatedDoc = {
                 $set: {
-                    status: status
+                    status: status,
+                    workStatus: "available"
                 }
             }
 
@@ -185,10 +193,16 @@ async function run() {
     // get report for a single person
     app.get("/reports", async (req, res) => {
       const query = {};
-      const { email } = req.query;
+      const { email, reportStatus } = req.query;
+
       if (email) {
         query.email = email;
       }
+
+      if(reportStatus){
+        query.reportStatus = reportStatus
+      }
+
       const options = { sort: { createdAt: -1 } };
       const cursor = reportsCollection.find(query, options);
       const result = await cursor.toArray();
@@ -203,7 +217,7 @@ async function run() {
       res.send(result);
     });
 
-    // add a parcel to database
+    // add a report to database
     app.post("/reports", async (req, res) => {
       const report = req.body;
       report.createdAt = new Date();
@@ -211,7 +225,38 @@ async function run() {
       res.send(result);
     });
 
-    // delete a parcel from database
+    // change a reports status
+    app.patch('/reports/:id', async(req,res)=>{
+        const {staffId, staffName, staffEmail} = req.body
+        const id = req.params.id
+        const query = {_id: new ObjectId(id)}
+
+        const updatedDoc = {
+          $set: {
+            reportStatus: "processing",
+            staffId: staffId,
+            staffName: staffName,
+            staffEmail: staffEmail,
+          }
+        }
+
+        const result = await reportsCollection.updateOne(query, updatedDoc)
+
+        // update staff information
+        const staffQuery = { _id: new ObjectId(staffId)}
+        const staffUpdatedDoc = {
+          $set: {
+            workStatus: "working",
+
+          }
+        }
+        const staffResult = await staffsCollection.updateOne(staffQuery, staffUpdatedDoc)
+
+        res.send(staffResult)
+
+    })
+
+    // delete a report from database
     app.delete("/reports/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -275,6 +320,7 @@ async function run() {
         const update = {
           $set: {
             paymentStatus: "paid",
+            reportStatus: 'pending-report',
             trakingId: generateTrackingId(),
           },
         };
