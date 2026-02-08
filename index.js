@@ -178,6 +178,18 @@ async function run() {
             }
 
             const result = await staffsCollection.updateOne(query, updatedDoc);
+
+            if (status === 'approved') {
+                const email = req.body.email;
+                const userQuery = { email }
+                const updateUser = {
+                    $set: {
+                        role: 'staff'
+                    }
+                }
+                const userResult = await usersCollection.updateOne(userQuery, updateUser);
+            }
+
             res.send(result);
         })
       
@@ -208,6 +220,24 @@ async function run() {
       const result = await cursor.toArray();
       res.send(result);
     });
+
+    // get report for staff task
+    app.get('/reports/staff', async(req, res)=>{
+      const {staffEmail, reportStatus} = req.query
+      const query = {}
+
+      if(staffEmail){
+        query.staffEmail = staffEmail
+      }
+
+      if(reportStatus){
+        query.reportStatus = reportStatus
+      }
+
+      const cursor = reportsCollection.find(query)
+      const result = await cursor.toArray()
+      res.send(result)
+    })
 
     // get a report
     app.get("/reports/:id", async (req, res) => {
