@@ -230,8 +230,12 @@ async function run() {
         query.staffEmail = staffEmail
       }
 
-      if(reportStatus){
+      if(reportStatus !== 'Solved'){
         query.reportStatus = {$nin: [ 'Solved']}
+      }
+
+      else{
+        query.reportStatus = reportStatus
       }
 
       const cursor = reportsCollection.find(query)
