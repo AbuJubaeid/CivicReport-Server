@@ -231,7 +231,7 @@ async function run() {
       }
 
       if(reportStatus){
-        query.reportStatus = reportStatus
+        query.reportStatus = {$in: [ 'In-Progress', 'Processing']}
       }
 
       const cursor = reportsCollection.find(query)
@@ -263,7 +263,7 @@ async function run() {
 
         const updatedDoc = {
           $set: {
-            reportStatus: "processing",
+            reportStatus: "In-Progress",
             staffId: staffId,
             staffName: staffName,
             staffEmail: staffEmail,
@@ -284,6 +284,18 @@ async function run() {
 
         res.send(staffResult)
 
+    })
+
+    app.patch('/reports/:id/status', async(req, res)=>{
+      const { reportStatus } = req.body
+      const query = { _id: new ObjectId(req.params.id)}
+      const updatedDoc = {
+        $set: {
+          reportStatus : reportStatus
+        }
+      }
+      const result = await reportsCollection.updateOne(query, updatedDoc)
+      res.send(result)
     })
 
     // delete a report from database
