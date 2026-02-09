@@ -231,7 +231,7 @@ async function run() {
       }
 
       if(reportStatus){
-        query.reportStatus = {$in: [ 'In-Progress', 'Processing']}
+        query.reportStatus = {$nin: [ 'Solved']}
       }
 
       const cursor = reportsCollection.find(query)
@@ -287,13 +287,26 @@ async function run() {
     })
 
     app.patch('/reports/:id/status', async(req, res)=>{
-      const { reportStatus } = req.body
+      const { reportStatus, staffId } = req.body
       const query = { _id: new ObjectId(req.params.id)}
       const updatedDoc = {
         $set: {
           reportStatus : reportStatus
         }
       }
+
+      if( reportStatus === 'Solved'){
+        // update staff information
+        const staffQuery = { _id: new ObjectId(staffId)}
+        const staffUpdatedDoc = {
+          $set: {
+            workStatus: "available",
+
+          }
+        }
+        const staffResult = await staffsCollection.updateOne(staffQuery, staffUpdatedDoc)
+      }
+
       const result = await reportsCollection.updateOne(query, updatedDoc)
       res.send(result)
     })
