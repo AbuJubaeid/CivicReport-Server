@@ -67,38 +67,40 @@ async function run() {
     const paymentCollection = db.collection("payments");
     const staffsCollection = db.collection("staff");
 
+    // ==>middleware for verifing admin
 
-    // ==>middleware for verifing admin 
+    const verifyAdminToken = async (req, res, next) => {
+      const email = req.decoded_email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
 
-    const verifyAdminToken = async(req, res, next)=>{
-      const email = req.decoded_email
-      const query = { email }
-      const user = await usersCollection.findOne(query)
-
-      if(!user || user.role !== 'admin'){
-        return res.status(403).send({message: 'forbidden access'})
+      if (!user || user.role !== "admin") {
+        return res.status(403).send({ message: "forbidden access" });
       }
 
-      next()
-    }
+      next();
+    };
 
     //==> users related apis are here
 
     // get all the users
-    app.get('/users',verifyFBToken, async(req, res)=>{
-      const searchUser = req.query.searchUser
-      const query = {}
+    app.get("/users", verifyFBToken, async (req, res) => {
+      const searchUser = req.query.searchUser;
+      const query = {};
 
-      if(searchUser){
+      if (searchUser) {
         query.$or = [
-          {displayName: { $regex: searchUser, $options: 'i'}},
-          {email: { $regex: searchUser, $options: 'i'}}
-        ]
+          { displayName: { $regex: searchUser, $options: "i" } },
+          { email: { $regex: searchUser, $options: "i" } },
+        ];
       }
-      const cursor = usersCollection.find(query).sort({createdAt: -1}).limit(5)
-      const result = await cursor.toArray()
-      res.send(result)
-    })
+      const cursor = usersCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .limit(5);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     // create user
     app.post("/users", async (req, res) => {
@@ -116,91 +118,102 @@ async function run() {
     });
 
     // change admin role
-    app.patch("/users/:id/role", verifyFBToken, verifyAdminToken,  async(req, res)=>{
-      const id = req.params.id
-      const roleInfo = req.body
-      const query = { _id: new ObjectId(id)}
-      const update = {
-        $set: {
-          role: roleInfo.role
-        }
-      }
-      const result = await usersCollection.updateOne(query, update)
-      res.send(result)
-    })
+    app.patch(
+      "/users/:id/role",
+      verifyFBToken,
+      verifyAdminToken,
+      async (req, res) => {
+        const id = req.params.id;
+        const roleInfo = req.body;
+        const query = { _id: new ObjectId(id) };
+        const update = {
+          $set: {
+            role: roleInfo.role,
+          },
+        };
+        const result = await usersCollection.updateOne(query, update);
+        res.send(result);
+      },
+    );
 
-    app.get('/users/:email/role', async(req, res)=>{
-      const email = req.params.email
-      const query = { email }
-      const user = await usersCollection.findOne(query)
-      res.send({role: user?.role || 'user'})
-    })
-
+    app.get("/users/:email/role", async (req, res) => {
+      const email = req.params.email;
+      const query = { email };
+      const user = await usersCollection.findOne(query);
+      res.send({ role: user?.role || "user" });
+    });
 
     //==> staff related apis are here
-    app.post('/staffs', async(req, res)=>{
-      const staff = req.body
-      staff.status = 'pending'
-      staff.createdAt = new Date()
+    app.post("/staffs", async (req, res) => {
+      const staff = req.body;
+      staff.status = "pending";
+      staff.createdAt = new Date();
 
-      const result = await staffsCollection.insertOne(staff)
-      res.send(result)
-    })
+      const result = await staffsCollection.insertOne(staff);
+      res.send(result);
+    });
 
     // get all the staffs
-    app.get('/staffs', async(req, res)=>{
-      const {status, address, workStatus} = req.query
-      const query = {}
+    app.get("/staffs", async (req, res) => {
+      const { status, address, workStatus } = req.query;
+      const query = {};
 
-      if(status){
-        query.status = status
+      if (status) {
+        query.status = status;
       }
 
-      if(workStatus){
-        query.workStatus = workStatus
+      if (workStatus) {
+        query.workStatus = workStatus;
       }
 
-      const cursor = staffsCollection.find(query)
-      const result = await cursor.toArray()
-      res.send(result)
-    })
+      const cursor = staffsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     // update staffs status
-     app.patch('/staffs/:id', verifyFBToken,verifyAdminToken, async (req, res) => {
-            const status = req.body.status;
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) }
-            const updatedDoc = {
-                $set: {
-                    status: status,
-                    workStatus: "available"
-                }
-            }
+    app.patch(
+      "/staffs/:id",
+      verifyFBToken,
+      verifyAdminToken,
+      async (req, res) => {
+        const status = req.body.status;
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const updatedDoc = {
+          $set: {
+            status: status,
+            workStatus: "available",
+          },
+        };
 
-            const result = await staffsCollection.updateOne(query, updatedDoc);
+        const result = await staffsCollection.updateOne(query, updatedDoc);
 
-            if (status === 'approved') {
-                const email = req.body.email;
-                const userQuery = { email }
-                const updateUser = {
-                    $set: {
-                        role: 'staff'
-                    }
-                }
-                const userResult = await usersCollection.updateOne(userQuery, updateUser);
-            }
+        if (status === "approved") {
+          const email = req.body.email;
+          const userQuery = { email };
+          const updateUser = {
+            $set: {
+              role: "staff",
+            },
+          };
+          const userResult = await usersCollection.updateOne(
+            userQuery,
+            updateUser,
+          );
+        }
 
-            res.send(result);
-        })
-      
-      // delete a staff from database
-      app.delete("/staffs/:id", async (req, res) => {
+        res.send(result);
+      },
+    );
+
+    // delete a staff from database
+    app.delete("/staffs/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await staffsCollection.deleteOne(query);
       res.send(result);
     });
-
 
     // get report for a single person
     app.get("/reports", async (req, res) => {
@@ -211,8 +224,8 @@ async function run() {
         query.email = email;
       }
 
-      if(reportStatus){
-        query.reportStatus = reportStatus
+      if (reportStatus) {
+        query.reportStatus = reportStatus;
       }
 
       const options = { sort: { createdAt: -1 } };
@@ -222,32 +235,61 @@ async function run() {
     });
 
     // get report for staff task
-    app.get('/reports/staff', async(req, res)=>{
-      const {staffEmail, reportStatus} = req.query
-      const query = {}
+    app.get("/reports/staff", async (req, res) => {
+      const { staffEmail, reportStatus } = req.query;
+      const query = {};
 
-      if(staffEmail){
-        query.staffEmail = staffEmail
+      if (staffEmail) {
+        query.staffEmail = staffEmail;
       }
 
-      if(reportStatus !== 'Solved'){
-        query.reportStatus = {$nin: [ 'Solved']}
+      if (reportStatus !== "Solved") {
+        query.reportStatus = { $nin: ["Solved"] };
+      } else {
+        query.reportStatus = reportStatus;
       }
 
-      else{
-        query.reportStatus = reportStatus
-      }
-
-      const cursor = reportsCollection.find(query)
-      const result = await cursor.toArray()
-      res.send(result)
-    })
+      const cursor = reportsCollection.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
 
     // get a report
     app.get("/reports/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await reportsCollection.findOne(query);
+      res.send(result);
+    });
+
+    // get recent reports
+    app.get("/reports/latest/:email", async (req, res) => {
+      const email = req.params.email;
+
+      const result = await reportsCollection
+        .find({ email })
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .toArray();
+
+      res.send(result);
+    });
+
+    // get latest resolved reports
+    app.get("/reports/solved/latest/:email", async (req, res) => {
+      const email = req.params.email;
+
+      const query = {
+        email,
+        reportStatus: "Solved",
+      };
+
+      const result = await reportsCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .toArray();
+
       res.send(result);
     });
 
@@ -260,60 +302,63 @@ async function run() {
     });
 
     // change a reports status
-    app.patch('/reports/:id', async(req,res)=>{
-        const {staffId, staffName, staffEmail} = req.body
-        const id = req.params.id
-        const query = {_id: new ObjectId(id)}
+    app.patch("/reports/:id", async (req, res) => {
+      const { staffId, staffName, staffEmail } = req.body;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
 
-        const updatedDoc = {
-          $set: {
-            reportStatus: "In-Progress",
-            staffId: staffId,
-            staffName: staffName,
-            staffEmail: staffEmail,
-          }
-        }
-
-        const result = await reportsCollection.updateOne(query, updatedDoc)
-
-        // update staff information
-        const staffQuery = { _id: new ObjectId(staffId)}
-        const staffUpdatedDoc = {
-          $set: {
-            workStatus: "working",
-
-          }
-        }
-        const staffResult = await staffsCollection.updateOne(staffQuery, staffUpdatedDoc)
-
-        res.send(staffResult)
-
-    })
-
-    app.patch('/reports/:id/status', async(req, res)=>{
-      const { reportStatus, staffId } = req.body
-      const query = { _id: new ObjectId(req.params.id)}
       const updatedDoc = {
         $set: {
-          reportStatus : reportStatus
-        }
-      }
+          reportStatus: "In-Progress",
+          staffId: staffId,
+          staffName: staffName,
+          staffEmail: staffEmail,
+        },
+      };
 
-      if( reportStatus === 'Solved'){
+      const result = await reportsCollection.updateOne(query, updatedDoc);
+
+      // update staff information
+      const staffQuery = { _id: new ObjectId(staffId) };
+      const staffUpdatedDoc = {
+        $set: {
+          workStatus: "working",
+        },
+      };
+      const staffResult = await staffsCollection.updateOne(
+        staffQuery,
+        staffUpdatedDoc,
+      );
+
+      res.send(staffResult);
+    });
+
+    app.patch("/reports/:id/status", async (req, res) => {
+      const { reportStatus, staffId } = req.body;
+      const query = { _id: new ObjectId(req.params.id) };
+      const updatedDoc = {
+        $set: {
+          reportStatus: reportStatus,
+        },
+      };
+
+      if (reportStatus === "Solved") {
         // update staff information
-        const staffQuery = { _id: new ObjectId(staffId)}
+        const staffQuery = { _id: new ObjectId(staffId) };
         const staffUpdatedDoc = {
           $set: {
             workStatus: "available",
-
-          }
-        }
-        const staffResult = await staffsCollection.updateOne(staffQuery, staffUpdatedDoc)
+          },
+        };
+        const staffResult = await staffsCollection.updateOne(
+          staffQuery,
+          staffUpdatedDoc,
+        );
       }
 
-      const result = await reportsCollection.updateOne(query, updatedDoc)
-      res.send(result)
-    })
+      const result = await reportsCollection.updateOne(query, updatedDoc);
+      res.send(result);
+    });
 
     // delete a report from database
     app.delete("/reports/:id", async (req, res) => {
@@ -379,7 +424,8 @@ async function run() {
         const update = {
           $set: {
             paymentStatus: "paid",
-            reportStatus: 'pending-report',
+            reportStatus: "pending",
+            priority: "High-Priority",
             trakingId: generateTrackingId(),
           },
         };
@@ -434,7 +480,7 @@ async function run() {
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
+      "Pinged your deployment. You successfully connected to MongoDB!",
     );
   } finally {
     // Ensures that the client will close when you finish/error
