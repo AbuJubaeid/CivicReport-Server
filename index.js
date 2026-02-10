@@ -398,65 +398,69 @@ async function run() {
       res.send({ url: session.url });
     });
 
+
     app.patch("/payment-success", async (req, res) => {
-      const sessionId = req.query.session_id;
-      console.log("sessionid", sessionId);
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      try {
+        const sessionId = req.query.session_id;
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-      const transactionId = session.payment_intent;
-      const query = { transactionId: transactionId };
-      const paymentExist = await paymentCollection.findOne(query);
+        if (session.payment_status !== "paid") {
+          return res.status(400).send({ success: false });
+        }
 
-      if (paymentExist) {
-        return {
-          message: "already exist",
-          transactionId,
-          trackingId: paymentExist.trackingId,
-        };
-      }
+        const transactionId = session.payment_intent;
+        const trackingId = generateTrackingId();
 
-      const trackingId = generateTrackingId();
-
-      console.log("session retrive", session);
-      if (session.payment_status === "paid") {
-        const id = session.metadata.reportId;
-        const query = { _id: new ObjectId(id) };
-        const update = {
-          $set: {
-            paymentStatus: "paid",
-            reportStatus: "pending",
-            priority: "High-Priority",
-            trakingId: generateTrackingId(),
+        // 🔒 Atomic upsert (no duplicates possible)
+        const paymentResult = await paymentCollection.updateOne(
+          { transactionId },
+          {
+            $setOnInsert: {
+              amount: session.amount_total,
+              currency: session.currency,
+              email: session.customer_email,
+              reportId: session.metadata.reportId,
+              name: session.metadata.name,
+              transactionId,
+              paymentStatus: session.payment_status,
+              paidAt: new Date(),
+              trackingId,
+            },
           },
-        };
-        const result = await reportsCollection.updateOne(query, update);
+          { upsert: true },
+        );
 
-        const payment = {
-          amount: session.amount_total,
-          currency: session.currency,
-          email: session.customer_email,
-          reportId: session.metadata.reportId,
-          name: session.metadata.name,
-          transactionId: session.payment_intent,
-          paymentStatus: session.payment_status,
-          paidAt: new Date(),
-          trackingId: trackingId,
-        };
-
-        if (session.payment_status === "paid") {
-          const resultPayment = await paymentCollection.insertOne(payment);
-
-          res.send({
+        // If payment already existed
+        if (!paymentResult.upsertedId) {
+          return res.send({
             success: true,
-            modifyReport: result,
-            trackingId: trackingId,
-            transactionId: session.payment_intent,
-            paymentInfo: resultPayment,
+            message: "Payment already processed",
+            transactionId,
           });
         }
-      }
 
-      res.send({ success: false });
+        // ✅ Update report ONLY ONCE
+        await reportsCollection.updateOne(
+          { _id: new ObjectId(session.metadata.reportId) },
+          {
+            $set: {
+              paymentStatus: "paid",
+              reportStatus: "pending",
+              priority: "High-Priority",
+              trakingId: trackingId,
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          transactionId,
+          trackingId,
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ success: false, error: err.message });
+      }
     });
 
     // getting payment history
