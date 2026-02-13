@@ -215,10 +215,12 @@ async function run() {
       res.send(result);
     });
 
-    // get report for a single person
+    // // get report for a single person and search
+
     app.get("/reports", async (req, res) => {
+      
+      const { email, reportStatus, category, status, priority, search } = req.query;
       const query = {};
-      const { email, reportStatus } = req.query;
 
       if (email) {
         query.email = email;
@@ -228,11 +230,24 @@ async function run() {
         query.reportStatus = reportStatus;
       }
 
+       if (category) query.category = category;
+        if (status) query.reportStatus = status;
+        if (priority) query.priority = priority;
+
+        if (search) {
+          query.$or = [
+            { issue: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { location: { $regex: search, $options: "i" } },
+          ];
+        }
+
       const options = { sort: { createdAt: -1 } };
       const cursor = reportsCollection.find(query, options);
       const result = await cursor.toArray();
       res.send(result);
     });
+
 
     // get report for staff task
     app.get("/reports/staff", async (req, res) => {
@@ -254,20 +269,10 @@ async function run() {
       res.send(result);
     });
 
-    // get a report
-    app.get("/reports/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await reportsCollection.findOne(query);
-      res.send(result);
-    });
-
     // get recent reports
-    app.get("/reports/latest/:email", async (req, res) => {
-      const email = req.params.email;
-
+    app.get("/reports/latest", async (req, res) => {
       const result = await reportsCollection
-        .find({ email })
+        .find()
         .sort({ createdAt: -1 })
         .limit(4)
         .toArray();
@@ -276,11 +281,8 @@ async function run() {
     });
 
     // get latest resolved reports
-    app.get("/reports/solved/latest/:email", async (req, res) => {
-      const email = req.params.email;
-
+    app.get("/reports/latest/solved", async (req, res) => {
       const query = {
-        email,
         reportStatus: "Solved",
       };
 
@@ -293,11 +295,33 @@ async function run() {
       res.send(result);
     });
 
+    // get a report
+    app.get("/reports/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await reportsCollection.findOne(query);
+      res.send(result);
+    });
+
+
     // add a report to database
     app.post("/reports", async (req, res) => {
       const report = req.body;
       report.createdAt = new Date();
       const result = await reportsCollection.insertOne(report);
+      res.send(result);
+    });
+
+    // update/edit reports information
+    app.patch("/reports/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+
+      const result = await reportsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedData },
+      );
+
       res.send(result);
     });
 
@@ -397,7 +421,6 @@ async function run() {
       console.log(session);
       res.send({ url: session.url });
     });
-
 
     app.patch("/payment-success", async (req, res) => {
       try {
