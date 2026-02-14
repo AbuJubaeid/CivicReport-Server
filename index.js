@@ -117,6 +117,44 @@ async function run() {
       res.send(result);
     });
 
+    // get current loggedin user
+    app.get("/users/me", verifyFBToken, async (req, res) => {
+      try {
+        const email = req.decoded_email; 
+        const user = await usersCollection.findOne({ email });
+
+        if (!user) {
+          return res.status(404).send({ message: "User not found" });
+        }
+
+        res.send(user);
+      } catch (err) {
+        console.error("GET /users/me error:", err);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
+    // update current loggedin user
+    app.patch("/users/me", verifyFBToken, async (req, res) => {
+      try {
+        const email = req.decoded_email; 
+
+        const updateDoc = {
+          $set: {
+            displayName: req.body.displayName,
+            email: req.body.email,
+            photoURL: req.body.photoURL,
+          },
+        };
+
+        const result = await usersCollection.updateOne({ email }, updateDoc);
+        res.send(result);
+      } catch (err) {
+        console.error("PATCH /users/me error:", err);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
     // change admin role
     app.patch(
       "/users/:id/role",
@@ -218,8 +256,8 @@ async function run() {
     // // get report for a single person and search
 
     app.get("/reports", async (req, res) => {
-      
-      const { email, reportStatus, category, status, priority, search } = req.query;
+      const { email, reportStatus, category, status, priority, search } =
+        req.query;
       const query = {};
 
       if (email) {
@@ -230,24 +268,23 @@ async function run() {
         query.reportStatus = reportStatus;
       }
 
-       if (category) query.category = category;
-        if (status) query.reportStatus = status;
-        if (priority) query.priority = priority;
+      if (category) query.category = category;
+      if (status) query.reportStatus = status;
+      if (priority) query.priority = priority;
 
-        if (search) {
-          query.$or = [
-            { issue: { $regex: search, $options: "i" } },
-            { category: { $regex: search, $options: "i" } },
-            { location: { $regex: search, $options: "i" } },
-          ];
-        }
+      if (search) {
+        query.$or = [
+          { issue: { $regex: search, $options: "i" } },
+          { category: { $regex: search, $options: "i" } },
+          { location: { $regex: search, $options: "i" } },
+        ];
+      }
 
       const options = { sort: { createdAt: -1 } };
       const cursor = reportsCollection.find(query, options);
       const result = await cursor.toArray();
       res.send(result);
     });
-
 
     // get report for staff task
     app.get("/reports/staff", async (req, res) => {
@@ -302,7 +339,6 @@ async function run() {
       const result = await reportsCollection.findOne(query);
       res.send(result);
     });
-
 
     // add a report to database
     app.post("/reports", async (req, res) => {
