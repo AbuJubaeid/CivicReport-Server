@@ -9,7 +9,10 @@ const crypto = require("crypto");
 
 const admin = require("firebase-admin");
 
-const serviceAccount = require("./civicreport-firebase-adminsdk.json");
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
+  "utf8",
+);
+const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -120,7 +123,7 @@ async function run() {
     // get current loggedin user
     app.get("/users/me", verifyFBToken, async (req, res) => {
       try {
-        const email = req.decoded_email; 
+        const email = req.decoded_email;
         const user = await usersCollection.findOne({ email });
 
         if (!user) {
@@ -137,7 +140,7 @@ async function run() {
     // update current loggedin user
     app.patch("/users/me", verifyFBToken, async (req, res) => {
       try {
-        const email = req.decoded_email; 
+        const email = req.decoded_email;
 
         const updateDoc = {
           $set: {
@@ -326,7 +329,7 @@ async function run() {
       const result = await reportsCollection
         .find(query)
         .sort({ createdAt: -1 })
-        .limit(4)
+        .limit(8)
         .toArray();
 
       res.send(result);
@@ -437,7 +440,7 @@ async function run() {
           {
             price_data: {
               currency: "USD",
-              unit_amount: 200,
+              unit_amount: 100,
               product_data: {
                 name: paymentInfo.issue,
               },
@@ -541,10 +544,10 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!",
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!",
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
