@@ -461,6 +461,49 @@ async function run() {
       res.send({ url: session.url });
     });
 
+    // payment for profile
+    app.post("/create-checkout-session/me", async (req, res) => {
+      try {
+        const paymentInfo = req.body;
+
+        if (
+          !paymentInfo?.email ||
+          !paymentInfo?.userId ||
+          !paymentInfo?.issue
+        ) {
+          return res.status(400).send({ message: "Missing payment data" });
+        }
+
+        const session = await stripe.checkout.sessions.create({
+          line_items: [
+            {
+              price_data: {
+                currency: "BDT",
+                unit_amount: 100000,
+                product_data: {
+                  name: paymentInfo.issue,
+                },
+              },
+              quantity: 1,
+            },
+          ],
+          customer_email: paymentInfo.email,
+          mode: "payment",
+          metadata: {
+            userId: paymentInfo.userId,
+            name: paymentInfo.issue,
+          },
+          success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success/me?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+        });
+
+        res.send({ url: session.url });
+      } catch (err) {
+        console.error("Stripe Error:", err.message);
+        res.status(400).send({ error: err.message });
+      }
+    });
+
     app.patch("/payment-success", async (req, res) => {
       try {
         const sessionId = req.query.session_id;
@@ -473,7 +516,6 @@ async function run() {
         const transactionId = session.payment_intent;
         const trackingId = generateTrackingId();
 
-        // 🔒 Atomic upsert (no duplicates possible)
         const paymentResult = await paymentCollection.updateOne(
           { transactionId },
           {
@@ -510,6 +552,69 @@ async function run() {
               reportStatus: "pending",
               priority: "High-Priority",
               trakingId: trackingId,
+            },
+          },
+        );
+
+        res.send({
+          success: true,
+          transactionId,
+          trackingId,
+        });
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ success: false, error: err.message });
+      }
+    });
+
+    // payment-success for profile
+    app.patch("/payment-success/me", async (req, res) => {
+      try {
+        const sessionId = req.query.session_id;
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+        if (session.payment_status !== "paid") {
+          return res.status(400).send({ success: false });
+        }
+
+        const transactionId = session.payment_intent;
+        const trackingId = generateTrackingId();
+
+        const paymentResult = await paymentCollection.updateOne(
+          { transactionId },
+          {
+            $setOnInsert: {
+              amount: session.amount_total,
+              currency: session.currency,
+              email: session.customer_email,
+              usertId: session.metadata.userId,
+              name: session.metadata.name,
+              transactionId,
+              paymentStatus: session.payment_status,
+              paidAt: new Date(),
+              trackingId,
+            },
+          },
+          { upsert: true },
+        );
+
+        // If payment already existed
+        if (!paymentResult.upsertedId) {
+          return res.send({
+            success: true,
+            message: "Payment already processed",
+            transactionId,
+          });
+        }
+
+        // Update report ONLY ONCE
+        await usersCollection.updateOne(
+          { _id: new ObjectId(session.metadata.userId) },
+          {
+            $set: {
+              paymentStatus: "paid",
+              priority: "High-Priority",
+              trackingId: trackingId,
             },
           },
         );
