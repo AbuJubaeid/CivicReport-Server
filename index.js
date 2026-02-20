@@ -256,8 +256,9 @@ async function run() {
       res.send(result);
     });
 
-    // // get report for a single person and search
+    // ====>reports related apis are here
 
+    // get report for a single person and search
     app.get("/reports", async (req, res) => {
       const { email, reportStatus, category, status, priority, search } =
         req.query;
@@ -343,7 +344,7 @@ async function run() {
       res.send(result);
     });
 
-    // add a report to database
+    // create a report to database
     app.post("/reports", async (req, res) => {
       const report = req.body;
       report.createdAt = new Date();
@@ -359,6 +360,29 @@ async function run() {
       const result = await reportsCollection.updateOne(
         { _id: new ObjectId(id) },
         { $set: updatedData },
+      );
+
+      res.send(result);
+    });
+
+    // change report status for upvort
+    app.patch("/reports/upvote/:id", async (req, res) => {
+      const id = req.params.id;
+
+      const result = await reportsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        [
+          {
+            $set: {
+              upVotes: { $ifNull: ["$upVotes", 0] },
+            },
+          },
+          {
+            $set: {
+              upVotes: { $add: ["$upVotes", 1] },
+            },
+          },
+        ],
       );
 
       res.send(result);
@@ -478,8 +502,8 @@ async function run() {
           line_items: [
             {
               price_data: {
-                currency: "BDT",
-                unit_amount: 100000,
+                currency: "USD",
+                unit_amount: 10,
                 product_data: {
                   name: paymentInfo.issue,
                 },
